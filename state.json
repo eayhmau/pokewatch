@@ -1,13 +1,13 @@
 {
   "product": {
-    "state": "other-http-403",
-    "level": 1,
+    "state": "blocked-403 (normal for datacenter IPs)",
+    "level": 0,
     "http": 403,
     "bytes": 858
   },
   "home": {
-    "state": "other-http-403",
-    "level": 1,
+    "state": "blocked-403 (normal for datacenter IPs)",
+    "level": 0,
     "http": 403,
     "bytes": 858
   }
