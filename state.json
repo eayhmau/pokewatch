@@ -1,0 +1,14 @@
+{
+  "product": {
+    "state": "other-http-403",
+    "level": 1,
+    "http": 403,
+    "bytes": 858
+  },
+  "home": {
+    "state": "other-http-403",
+    "level": 1,
+    "http": 403,
+    "bytes": 858
+  }
+}
