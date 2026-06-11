@@ -88,8 +88,11 @@ def send_discord(content):
 def main():
     old = {}
     if os.path.exists(STATE_FILE):
-        with open(STATE_FILE) as f:
-            old = json.load(f)
+        try:
+            with open(STATE_FILE, encoding="utf-8-sig") as f:
+                old = json.load(f)
+        except (ValueError, OSError):
+            old = {}
 
     new, lines = {}, []
     for name, url in URLS.items():
