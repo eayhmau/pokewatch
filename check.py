@@ -60,6 +60,9 @@ def classify(status, body):
         return "challenge-light (normal wall)", 0
     if "error 17" in b or "access denied" in b:
         return "hard-block (normal for bots)", 0
+    if status == 403:
+        # GitHub runner IPs get a plain 403 block on normal days - that's baseline.
+        return "blocked-403 (normal for datacenter IPs)", 0
     if status == 0:
         return "fetch-error", 0
     return "other-http-" + str(status), 1
