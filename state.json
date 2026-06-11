@@ -1,6 +1,6 @@
 {
   "product": {
-    "state": "discord-pipe-test",
+    "state": "blocked-403 (normal for datacenter IPs)",
     "level": 0,
     "http": 403,
     "bytes": 858
