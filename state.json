@@ -3,12 +3,12 @@
     "state": "challenge-iframe (lockdown mode)",
     "level": 1,
     "http": 200,
-    "bytes": 1054
+    "bytes": 1053
   },
   "home": {
     "state": "challenge-iframe (lockdown mode)",
     "level": 1,
     "http": 200,
-    "bytes": 1060
+    "bytes": 1051
   }
 }
