@@ -1,14 +1,14 @@
 {
   "product": {
-    "state": "challenge-iframe (lockdown mode)",
-    "level": 1,
-    "http": 200,
-    "bytes": 1049
+    "state": "blocked-403 (normal for datacenter IPs)",
+    "level": 0,
+    "http": 403,
+    "bytes": 858
   },
   "home": {
-    "state": "challenge-iframe (lockdown mode)",
-    "level": 1,
-    "http": 200,
-    "bytes": 1053
+    "state": "blocked-403 (normal for datacenter IPs)",
+    "level": 0,
+    "http": 403,
+    "bytes": 858
   }
 }
