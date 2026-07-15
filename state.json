@@ -1,14 +1,14 @@
 {
   "product": {
-    "state": "fetch-error",
-    "level": 0,
-    "http": 0,
-    "bytes": 74
+    "state": "challenge-iframe (lockdown mode)",
+    "level": 1,
+    "http": 200,
+    "bytes": 1050
   },
   "home": {
-    "state": "fetch-error",
-    "level": 0,
-    "http": 0,
-    "bytes": 74
+    "state": "challenge-iframe (lockdown mode)",
+    "level": 1,
+    "http": 200,
+    "bytes": 1048
   }
 }
