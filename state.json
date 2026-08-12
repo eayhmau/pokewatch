@@ -6,9 +6,9 @@
     "bytes": 858
   },
   "home": {
-    "state": "other-http-200",
-    "level": 1,
-    "http": 200,
-    "bytes": 615848
+    "state": "blocked-403 (normal for datacenter IPs)",
+    "level": 0,
+    "http": 403,
+    "bytes": 858
   }
 }
