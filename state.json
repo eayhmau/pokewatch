@@ -1,14 +1,23 @@
 {
-  "product": {
+  "pokemon-product": {
     "state": "blocked-403 (normal for datacenter IPs)",
     "level": 0,
     "http": 403,
-    "bytes": 858
+    "kind": "wall",
+    "link": "https://www.pokemoncenter.com/en-gb/en-gb/product/10-10416-109/pokemon-tcg-mega-evolution-pitch-black-pokemon-center-elite-trainer-box/"
   },
-  "home": {
+  "pokemon-home": {
     "state": "blocked-403 (normal for datacenter IPs)",
     "level": 0,
     "http": 403,
-    "bytes": 858
+    "kind": "wall",
+    "link": "https://www.pokemoncenter.com/"
+  },
+  "weeztix-bcgfest-utrecht": {
+    "state": "all sold out (2 tickets)",
+    "level": 0,
+    "http": 200,
+    "kind": "weeztix",
+    "link": "https://shop.weeztix.com/2267989d-8cc0-11f0-a9cb-7e126431635e/tickets"
   }
 }

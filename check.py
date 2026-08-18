@@ -1,18 +1,22 @@
 """
-PokeWatch (GitHub Actions edition)
-----------------------------------
-Polls pokemoncenter.com from GitHub's servers. Bots never see the real site
-(Imperva bot wall), but the WALL ITSELF changes mode around releases:
+PokeWatch / stock watcher (GitHub Actions edition)
+--------------------------------------------------
+Runs from GitHub's servers every ~10 min, 24/7. Two kinds of source:
 
-  * normal times  -> tiny ~212-byte JS challenge page
-  * maintenance   -> bigger iframe challenge / maintenance page  (observed 2026-06-10)
-  * big drops     -> queue pages, hard blocks, other shifts
+1. WALL-FINGERPRINT sources (Pokemon Center): bots never see the real site
+   (Imperva bot wall), but the WALL changes mode around releases, so we
+   fingerprint it and alert when the mode changes.
+     level 0 = normal wall (nothing happening)
+     level 1 = wall changed mode (maintenance/queue/lockdown - a drop may be near)
+     level 2 = real page reached (wall down)
 
-So this script fingerprints the wall and pings Discord when the mode changes.
-Signal levels:
-  0 = NORMAL  (usual bot wall - nothing happening)
-  1 = SIGNAL  (wall changed mode - maintenance/queue/lockdown: a release may be near)
-  2 = OPEN    (real product page reached - the wall is down for bots, definitely go look)
+2. JSON-API sources (Weeztix/OpenTicket ticket shop): the shop exposes a public
+   data endpoint with each ticket's real status ("sold_out" / "available"), so
+   we read it directly and alert the moment a ticket is buyable.
+     level 0 = all sold out (baseline)
+     level 2 = at least one ticket AVAILABLE (go go go)
+
+Alerts fire only when a source's state CHANGES between runs.
 """
 
 import json
@@ -20,12 +24,21 @@ import os
 import re
 import urllib.request
 
-URLS = {
-    "product": (
+# --- Wall-fingerprint sources (fetch HTML, classify the bot wall) ---
+WALL_URLS = {
+    "pokemon-product": (
         "https://www.pokemoncenter.com/en-gb/en-gb/product/10-10416-109/"
         "pokemon-tcg-mega-evolution-pitch-black-pokemon-center-elite-trainer-box/"
     ),
-    "home": "https://www.pokemoncenter.com/",
+    "pokemon-home": "https://www.pokemoncenter.com/",
+}
+
+# --- JSON-API sources (Weeztix/OpenTicket shops: name -> (data_url, shop_url)) ---
+WEEZTIX_SHOPS = {
+    "weeztix-bcgfest-utrecht": (
+        "https://shop.api.openticket.tech/2267989d-8cc0-11f0-a9cb-7e126431635e/data",
+        "https://shop.weeztix.com/2267989d-8cc0-11f0-a9cb-7e126431635e/tickets",
+    ),
 }
 
 STATE_FILE = "state.json"
@@ -44,8 +57,8 @@ def fetch(url):
         return 0, "FETCH-ERROR: " + str(e)
 
 
-def classify(status, body):
-    """Returns (state_name, signal_level)."""
+def classify_wall(status, body):
+    """Fingerprint the bot wall. Returns (state_name, signal_level)."""
     b = body.lower()
     if "schema.org" in b and '"availability"' in b:
         m = re.search(r'"availability"\s*:\s*"https?://schema\.org/(\w+)"', b)
@@ -68,15 +81,33 @@ def classify(status, body):
     return "other-http-" + str(status), 1
 
 
+def classify_weeztix(status, body):
+    """Read the OpenTicket data JSON. Returns (state_name, signal_level)."""
+    if status != 200:
+        return f"api-http-{status}", 0
+    try:
+        tickets = json.loads(body).get("tickets", {})
+    except ValueError:
+        return "api-bad-json", 0
+    if not tickets:
+        return "no-tickets-listed", 0
+    available = [t.get("name", "?") for t in tickets.values()
+                 if str(t.get("status", "")).lower() != "sold_out"]
+    total = len(tickets)
+    if available:
+        return "AVAILABLE: " + ", ".join(available), 2
+    return f"all sold out ({total} tickets)", 0
+
+
 def send_discord(content):
     webhook = os.environ.get("DISCORD_WEBHOOK", "").strip()
     if not webhook:
         print("WARNING: DISCORD_WEBHOOK secret not set - cannot notify!")
         return
-    data = json.dumps({"content": content, "username": "PokeWatch GitHub"}).encode()
+    data = json.dumps({"content": content, "username": "StockWatch"}).encode()
     req = urllib.request.Request(
         webhook, data=data,
-        headers={"Content-Type": "application/json", "User-Agent": "PokeWatch"},
+        headers={"Content-Type": "application/json", "User-Agent": "StockWatch"},
     )
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
@@ -94,28 +125,48 @@ def main():
         except (ValueError, OSError):
             old = {}
 
-    new, lines = {}, []
-    for name, url in URLS.items():
+    new = {}
+    # kind: "wall" sources share one combined alert; "weeztix" sources alert individually.
+    for name, url in WALL_URLS.items():
         status, body = fetch(url)
-        state, level = classify(status, body)
-        new[name] = {"state": state, "level": level, "http": status, "bytes": len(body)}
-        print(f"{name}: HTTP {status}, {len(body)} bytes -> {state} (level {level})")
+        state, level = classify_wall(status, body)
+        new[name] = {"state": state, "level": level, "http": status, "kind": "wall",
+                     "link": url}
+        print(f"{name}: HTTP {status} -> {state} (level {level})")
 
-        o = old.get(name, {})
-        if o and (o.get("level") != level or o.get("state") != state):
-            lines.append(
-                f"**{name}**: `{o.get('state')}` -> `{state}` (HTTP {status})"
-            )
+    for name, (data_url, shop_url) in WEEZTIX_SHOPS.items():
+        status, body = fetch(data_url)
+        state, level = classify_weeztix(status, body)
+        new[name] = {"state": state, "level": level, "http": status, "kind": "weeztix",
+                     "link": shop_url}
+        print(f"{name}: HTTP {status} -> {state} (level {level})")
 
-    if lines:
-        max_level = max(v["level"] for v in new.values())
-        if max_level >= 2:
+    # --- Build alerts for any source whose state changed ---
+    wall_lines, wall_max = [], 0
+    for name, cur in new.items():
+        prev = old.get(name, {})
+        changed = prev and (prev.get("state") != cur["state"] or prev.get("level") != cur["level"])
+        if not changed:
+            continue
+        if cur["kind"] == "weeztix":
+            # Ticket shops get their own dedicated message.
+            if cur["level"] >= 2:
+                head = "🎟️ @everyone **TICKETS AVAILABLE!** " + cur["state"]
+            else:
+                head = "👀 **StockWatch:** ticket status changed — " + cur["state"]
+            send_discord(f"{head}\n(was: `{prev.get('state')}`)\n{cur['link']}")
+        else:  # wall
+            wall_lines.append(f"**{name}**: `{prev.get('state')}` -> `{cur['state']}` (HTTP {cur['http']})")
+            wall_max = max(wall_max, cur["level"])
+
+    if wall_lines:
+        if wall_max >= 2:
             head = "🚨 @everyone **THE WALL IS DOWN — real page visible to bots! GO CHECK NOW!**"
-        elif max_level == 1:
-            head = "🛡️ @everyone **DROP SIGNAL — Pokemon Center's bot wall changed mode.** Go check the site manually!"
+        elif wall_max == 1:
+            head = "🛡️ @everyone **DROP SIGNAL — Pokemon Center's bot wall changed mode.** Go check manually!"
         else:
-            head = "👀 **PokeWatch:** wall returned to normal mode."
-        send_discord(head + "\n" + "\n".join(lines) + "\n" + URLS["product"])
+            head = "👀 **StockWatch:** Pokemon wall returned to normal mode."
+        send_discord(head + "\n" + "\n".join(wall_lines) + "\n" + WALL_URLS["pokemon-product"])
 
     with open(STATE_FILE, "w") as f:
         json.dump(new, f, indent=2)
