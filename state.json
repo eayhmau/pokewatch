@@ -1,9 +1,9 @@
 {
   "product": {
-    "state": "fetch-error",
+    "state": "blocked-403 (normal for datacenter IPs)",
     "level": 0,
-    "http": 0,
-    "bytes": 65
+    "http": 403,
+    "bytes": 858
   },
   "home": {
     "state": "blocked-403 (normal for datacenter IPs)",
