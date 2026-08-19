@@ -14,7 +14,7 @@
     "link": "https://www.pokemoncenter.com/"
   },
   "weeztix-bcgfest-utrecht": {
-    "state": "all sold out (2 tickets)",
+    "state": "__optcg-test__ all sold out (2 tickets)",
     "level": 0,
     "http": 200,
     "kind": "weeztix",
