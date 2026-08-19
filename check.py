@@ -99,10 +99,10 @@ def classify_weeztix(status, body):
     return f"all sold out ({total} tickets)", 0
 
 
-def send_discord(content):
-    webhook = os.environ.get("DISCORD_WEBHOOK", "").strip()
+def send_discord(content, webhook_env="DISCORD_WEBHOOK"):
+    webhook = os.environ.get(webhook_env, "").strip()
     if not webhook:
-        print("WARNING: DISCORD_WEBHOOK secret not set - cannot notify!")
+        print(f"WARNING: {webhook_env} secret not set - cannot notify!")
         return
     data = json.dumps({"content": content, "username": "StockWatch"}).encode()
     req = urllib.request.Request(
@@ -154,7 +154,9 @@ def main():
                 head = "🎟️ @everyone **TICKETS AVAILABLE!** " + cur["state"]
             else:
                 head = "👀 **StockWatch:** ticket status changed — " + cur["state"]
-            send_discord(f"{head}\n(was: `{prev.get('state')}`)\n{cur['link']}")
+            # One Piece / Weeztix alerts go to their own dedicated webhook.
+            send_discord(f"{head}\n(was: `{prev.get('state')}`)\n{cur['link']}",
+                         webhook_env="OPTCG_WEEZTIX")
         else:  # wall
             wall_lines.append(f"**{name}**: `{prev.get('state')}` -> `{cur['state']}` (HTTP {cur['http']})")
             wall_max = max(wall_max, cur["level"])

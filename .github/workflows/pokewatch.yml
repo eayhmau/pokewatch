@@ -2,7 +2,7 @@ name: PokeWatch
 
 on:
   schedule:
-    - cron: "*/10 * * * *"   # every 10 minutes (GitHub may add a few minutes of delay)
+    - cron: "*/5 * * * *"    # every 5 minutes (GitHub's practical floor; runs are best-effort and may lag)
   workflow_dispatch: {}       # lets you trigger a check manually from the Actions tab
 
 permissions:
@@ -21,6 +21,7 @@ jobs:
       - name: Check Pokemon Center
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          OPTCG_WEEZTIX: ${{ secrets.OPTCG_WEEZTIX }}
         run: python3 check.py
 
       - name: Save state
