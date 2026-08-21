@@ -19,5 +19,12 @@
     "http": 200,
     "kind": "weeztix",
     "link": "https://shop.weeztix.com/2267989d-8cc0-11f0-a9cb-7e126431635e/tickets"
+  },
+  "ope-opcg-grandbattle-bristol": {
+    "state": "not on sale yet",
+    "level": 0,
+    "http": 200,
+    "kind": "ope",
+    "link": "https://tickets.organizedplay.events/Event/Index/179"
   }
 }
