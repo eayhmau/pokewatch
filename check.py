@@ -46,6 +46,7 @@ WEEZTIX_SHOPS = {
 # a <select id="quantity-..."> dropdown is rendered - that's the availability signal.
 OPE_EVENTS = {
     "ope-opcg-grandbattle-bristol": "https://tickets.organizedplay.events/Event/Index/179",
+    "ope-opcg-regionals-bristol": "https://tickets.organizedplay.events/Event/Index/178",
 }
 
 STATE_FILE = "state.json"
