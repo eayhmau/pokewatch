@@ -14,8 +14,8 @@
     "link": "https://www.pokemoncenter.com/"
   },
   "weeztix-bcgfest-utrecht": {
-    "state": "AVAILABLE: Timeslot 1\u316310:30Uhr",
-    "level": 2,
+    "state": "no-tickets-listed",
+    "level": 0,
     "http": 200,
     "kind": "weeztix",
     "link": "https://shop.weeztix.com/2267989d-8cc0-11f0-a9cb-7e126431635e/tickets"
