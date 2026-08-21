@@ -41,6 +41,13 @@ WEEZTIX_SHOPS = {
     ),
 }
 
+# --- HTML sources (organizedplay.events: server-rendered pages, name -> url) ---
+# Pre-sale the ticket shows text "Not Available"; when a buyable quantity opens,
+# a <select id="quantity-..."> dropdown is rendered - that's the availability signal.
+OPE_EVENTS = {
+    "ope-opcg-grandbattle-bristol": "https://tickets.organizedplay.events/Event/Index/179",
+}
+
 STATE_FILE = "state.json"
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/125.0 Safari/537.36")
@@ -77,26 +84,56 @@ def classify_wall(status, body):
         # GitHub runner IPs get a plain 403 block on normal days - that's baseline.
         return "blocked-403 (normal for datacenter IPs)", 0
     if status == 0:
-        return "fetch-error", 0
+        return "fetch-error", -1
     return "other-http-" + str(status), 1
 
 
+# Explicit buyable statuses - only these trigger an "available" alert. Anything
+# else (sold_out, empty, unknown) does NOT, so degraded API responses can't false-alarm.
+BUYABLE_STATUSES = {"available", "on_sale", "onsale", "for_sale", "in_stock"}
+
+
 def classify_weeztix(status, body):
-    """Read the OpenTicket data JSON. Returns (state_name, signal_level)."""
+    """Read the OpenTicket data JSON. Returns (state_name, signal_level).
+    level -1 means 'unreliable read' - caller keeps the previous state, no alert."""
     if status != 200:
-        return f"api-http-{status}", 0
+        return "api-http-" + str(status), -1
     try:
-        tickets = json.loads(body).get("tickets", {})
+        data = json.loads(body)
     except ValueError:
-        return "api-bad-json", 0
-    if not tickets:
-        return "no-tickets-listed", 0
-    available = [t.get("name", "?") for t in tickets.values()
-                 if str(t.get("status", "")).lower() != "sold_out"]
-    total = len(tickets)
+        return "api-bad-json", -1
+    tickets = data.get("tickets", {})
+    if not isinstance(tickets, dict):
+        return "api-unexpected-shape", -1
+    # Only entries with a real name AND status are trustworthy; the queue layer
+    # sometimes returns blank/placeholder entries.
+    meaningful = [t for t in tickets.values()
+                  if isinstance(t, dict) and t.get("name") and t.get("status")]
+    if not meaningful:
+        return "api-degraded-response", -1
+    available = [t["name"] for t in meaningful
+                 if str(t.get("status", "")).lower() in BUYABLE_STATUSES]
     if available:
         return "AVAILABLE: " + ", ".join(available), 2
-    return f"all sold out ({total} tickets)", 0
+    return f"all sold out ({len(meaningful)} tickets)", 0
+
+
+def classify_ope(status, body):
+    """Read an organizedplay.events ticket page. Returns (state_name, level).
+    level -1 means 'unreliable read' - caller keeps the previous state, no alert."""
+    if status != 200:
+        return "http-" + str(status), -1
+    lc = body.lower()
+    if "grand battle ticket" not in lc and "ticket-option" not in lc:
+        return "page-structure-changed", 1  # markup changed - worth a manual look
+    # A rendered quantity <select id="quantity-..."> only appears when buyable stock is open.
+    if re.search(r'id=["\']quantity-', lc):
+        return "AVAILABLE (buy dropdown live)", 2
+    if "sold out" in lc:
+        return "sold out", 0
+    if "not available" in lc:
+        return "not on sale yet", 0
+    return "unknown-state", 1
 
 
 def send_discord(content, webhook_env="DISCORD_WEBHOOK"):
@@ -126,20 +163,29 @@ def main():
             old = {}
 
     new = {}
-    # kind: "wall" sources share one combined alert; "weeztix" sources alert individually.
-    for name, url in WALL_URLS.items():
-        status, body = fetch(url)
-        state, level = classify_wall(status, body)
-        new[name] = {"state": state, "level": level, "http": status, "kind": "wall",
-                     "link": url}
-        print(f"{name}: HTTP {status} -> {state} (level {level})")
 
+    def record(name, url, classify, kind, link):
+        status, body = fetch(url)
+        state, level = classify(status, body)
+        if level < 0:
+            # Unreliable read (network error / degraded API): keep last good state,
+            # don't alert. Fall back to a neutral entry if we've never had one.
+            prev = old.get(name)
+            new[name] = prev if prev else {"state": "pending-first-read", "level": 0,
+                                           "http": status, "kind": kind, "link": link}
+            print(f"{name}: HTTP {status} -> {state} (unreliable, keeping last state)")
+        else:
+            new[name] = {"state": state, "level": level, "http": status,
+                         "kind": kind, "link": link}
+            print(f"{name}: HTTP {status} -> {state} (level {level})")
+
+    # kind: "wall" sources share one combined alert; ticket sources alert individually.
+    for name, url in WALL_URLS.items():
+        record(name, url, classify_wall, "wall", url)
     for name, (data_url, shop_url) in WEEZTIX_SHOPS.items():
-        status, body = fetch(data_url)
-        state, level = classify_weeztix(status, body)
-        new[name] = {"state": state, "level": level, "http": status, "kind": "weeztix",
-                     "link": shop_url}
-        print(f"{name}: HTTP {status} -> {state} (level {level})")
+        record(name, data_url, classify_weeztix, "weeztix", shop_url)
+    for name, url in OPE_EVENTS.items():
+        record(name, url, classify_ope, "ope", url)
 
     # --- Build alerts for any source whose state changed ---
     wall_lines, wall_max = [], 0
@@ -148,13 +194,13 @@ def main():
         changed = prev and (prev.get("state") != cur["state"] or prev.get("level") != cur["level"])
         if not changed:
             continue
-        if cur["kind"] == "weeztix":
-            # Ticket shops get their own dedicated message.
+        if cur["kind"] in ("weeztix", "ope"):
+            # Ticket shops (both One Piece platforms) get their own dedicated message.
             if cur["level"] >= 2:
                 head = "🎟️ @everyone **TICKETS AVAILABLE!** " + cur["state"]
             else:
                 head = "👀 **StockWatch:** ticket status changed — " + cur["state"]
-            # One Piece / Weeztix alerts go to their own dedicated webhook.
+            # One Piece ticket alerts go to their own dedicated webhook.
             send_discord(f"{head}\n(was: `{prev.get('state')}`)\n{cur['link']}",
                          webhook_env="OPTCG_WEEZTIX")
         else:  # wall
