@@ -33,5 +33,12 @@
     "http": 200,
     "kind": "ope",
     "link": "https://tickets.organizedplay.events/Event/Index/178"
+  },
+  "ope-opcg-regionals-london": {
+    "state": "sold out",
+    "level": 0,
+    "http": 200,
+    "kind": "ope",
+    "link": "https://tickets.organizedplay.events/Event/Index/175"
   }
 }
