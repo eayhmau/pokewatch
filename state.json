@@ -1,14 +1,14 @@
 {
   "pokemon-product": {
-    "state": "challenge-iframe (lockdown mode)",
-    "level": 1,
+    "state": "challenge-light (normal wall)",
+    "level": 0,
     "http": 200,
     "kind": "wall",
     "link": "https://www.pokemoncenter.com/en-gb/en-gb/product/10-10416-109/pokemon-tcg-mega-evolution-pitch-black-pokemon-center-elite-trainer-box/"
   },
   "pokemon-home": {
-    "state": "challenge-iframe (lockdown mode)",
-    "level": 1,
+    "state": "blocked-403 (normal for datacenter IPs)",
+    "level": 0,
     "http": 403,
     "kind": "wall",
     "link": "https://www.pokemoncenter.com/"
