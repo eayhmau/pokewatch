@@ -28,11 +28,13 @@ import re
 import urllib.request
 
 # --- Wall-fingerprint sources (fetch HTML, classify the bot wall) ---
+# We watch the new-releases category (where any drop first appears) plus the home
+# page. From GitHub's datacenter IPs the bot wall blocks the real content, so this
+# detects the wall changing mode (maintenance/lockdown = a drop is likely near),
+# not individual products.
+POKEMON_LINK = "https://www.pokemoncenter.com/en-gb/category/new-releases"
 WALL_URLS = {
-    "pokemon-product": (
-        "https://www.pokemoncenter.com/en-gb/en-gb/product/10-10416-109/"
-        "pokemon-tcg-mega-evolution-pitch-black-pokemon-center-elite-trainer-box/"
-    ),
+    "pokemon-newreleases": POKEMON_LINK,
     "pokemon-home": "https://www.pokemoncenter.com/",
 }
 
@@ -228,7 +230,7 @@ def alert(old, new):
             head = "🛡️ @everyone **DROP SIGNAL — Pokemon Center's bot wall changed mode.** Go check manually!"
         else:
             head = "👀 **StockWatch:** Pokemon wall returned to normal mode."
-        send_discord(head + "\n" + "\n".join(wall_lines) + "\n" + WALL_URLS["pokemon-product"])
+        send_discord(head + "\n" + "\n".join(wall_lines) + "\n" + POKEMON_LINK)
 
 
 def run_once():
