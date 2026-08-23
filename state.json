@@ -1,10 +1,10 @@
 {
-  "pokemon-product": {
-    "state": "challenge-light (normal wall)",
+  "pokemon-newreleases": {
+    "state": "blocked-403 (normal for datacenter IPs)",
     "level": 0,
-    "http": 200,
+    "http": 403,
     "kind": "wall",
-    "link": "https://www.pokemoncenter.com/en-gb/en-gb/product/10-10416-109/pokemon-tcg-mega-evolution-pitch-black-pokemon-center-elite-trainer-box/"
+    "link": "https://www.pokemoncenter.com/en-gb/category/new-releases"
   },
   "pokemon-home": {
     "state": "blocked-403 (normal for datacenter IPs)",
