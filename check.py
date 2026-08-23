@@ -50,6 +50,7 @@ WEEZTIX_SHOPS = {
 OPE_EVENTS = {
     "ope-opcg-grandbattle-bristol": "https://tickets.organizedplay.events/Event/Index/179",
     "ope-opcg-regionals-bristol": "https://tickets.organizedplay.events/Event/Index/178",
+    "ope-opcg-regionals-london": "https://tickets.organizedplay.events/Event/Index/175",
 }
 
 STATE_FILE = "state.json"
