@@ -2,12 +2,14 @@ name: PokeWatch
 
 on:
   schedule:
-    - cron: "*/5 * * * *"    # every 5 minutes (GitHub's practical floor; runs are best-effort and may lag)
-  workflow_dispatch: {}       # lets you trigger a check manually from the Actions tab
+    - cron: "*/5 * * * *"    # heartbeat: restart the loop within 5 min if it ever dies
+  workflow_dispatch: {}
 
 permissions:
   contents: write
 
+# Only one loop runs at a time. A scheduled trigger during an active loop waits
+# pending, then starts the instant the active run ends -> near-seamless handoff.
 concurrency:
   group: pokewatch
   cancel-in-progress: false
@@ -15,20 +17,24 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check Pokemon Center
+      - name: Watch loop (checks every ~20s for ~55 min)
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           OPTCG_WEEZTIX: ${{ secrets.OPTCG_WEEZTIX }}
-        run: python3 check.py
+          INTERVAL: "20"
+          LOOP_SECONDS: "3300"
+        run: python3 check.py --loop
 
       - name: Save state
+        if: always()
         run: |
           git config user.name "pokewatch-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add state.json
+          git add state.json || true
           git diff --cached --quiet || git commit -m "state update"
           git pull --rebase || true
-          git push
+          git push || true

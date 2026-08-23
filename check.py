@@ -21,6 +21,9 @@ Alerts fire only when a source's state CHANGES between runs.
 
 import json
 import os
+import sys
+import time
+from datetime import datetime
 import re
 import urllib.request
 
@@ -154,15 +157,23 @@ def send_discord(content, webhook_env="DISCORD_WEBHOOK"):
         print("Discord send failed:", e)
 
 
-def main():
-    old = {}
+def load_state():
     if os.path.exists(STATE_FILE):
         try:
             with open(STATE_FILE, encoding="utf-8-sig") as f:
-                old = json.load(f)
+                return json.load(f)
         except (ValueError, OSError):
-            old = {}
+            pass
+    return {}
 
+
+def save_state(state):
+    with open(STATE_FILE, "w") as f:
+        json.dump(state, f, indent=2)
+
+
+def collect(old, verbose=True):
+    """Fetch every source once; return the new state dict (with carry-forward)."""
     new = {}
 
     def record(name, url, classify, kind, link):
@@ -174,34 +185,35 @@ def main():
             prev = old.get(name)
             new[name] = prev if prev else {"state": "pending-first-read", "level": 0,
                                            "http": status, "kind": kind, "link": link}
-            print(f"{name}: HTTP {status} -> {state} (unreliable, keeping last state)")
+            if verbose:
+                print(f"{name}: HTTP {status} -> {state} (unreliable, keeping last state)")
         else:
             new[name] = {"state": state, "level": level, "http": status,
                          "kind": kind, "link": link}
-            print(f"{name}: HTTP {status} -> {state} (level {level})")
+            if verbose:
+                print(f"{name}: HTTP {status} -> {state} (level {level})")
 
-    # kind: "wall" sources share one combined alert; ticket sources alert individually.
     for name, url in WALL_URLS.items():
         record(name, url, classify_wall, "wall", url)
     for name, (data_url, shop_url) in WEEZTIX_SHOPS.items():
         record(name, data_url, classify_weeztix, "weeztix", shop_url)
     for name, url in OPE_EVENTS.items():
         record(name, url, classify_ope, "ope", url)
+    return new
 
-    # --- Build alerts for any source whose state changed ---
+
+def alert(old, new):
+    """Send Discord messages for any source whose state changed vs `old`."""
     wall_lines, wall_max = [], 0
     for name, cur in new.items():
         prev = old.get(name, {})
-        changed = prev and (prev.get("state") != cur["state"] or prev.get("level") != cur["level"])
-        if not changed:
+        if not (prev and (prev.get("state") != cur["state"] or prev.get("level") != cur["level"])):
             continue
         if cur["kind"] in ("weeztix", "ope"):
-            # Ticket shops (both One Piece platforms) get their own dedicated message.
             if cur["level"] >= 2:
                 head = "🎟️ @everyone **TICKETS AVAILABLE!** " + cur["state"]
             else:
                 head = "👀 **StockWatch:** ticket status changed — " + cur["state"]
-            # One Piece ticket alerts go to their own dedicated webhook.
             send_discord(f"{head}\n(was: `{prev.get('state')}`)\n{cur['link']}",
                          webhook_env="OPTCG_WEEZTIX")
         else:  # wall
@@ -217,9 +229,40 @@ def main():
             head = "👀 **StockWatch:** Pokemon wall returned to normal mode."
         send_discord(head + "\n" + "\n".join(wall_lines) + "\n" + WALL_URLS["pokemon-product"])
 
-    with open(STATE_FILE, "w") as f:
-        json.dump(new, f, indent=2)
+
+def run_once():
+    old = load_state()
+    new = collect(old)
+    alert(old, new)
+    save_state(new)
+
+
+def run_loop():
+    """Check every INTERVAL seconds in-memory for ~LOOP_SECONDS, then exit so the
+    workflow can hand off to a fresh run. State persists via state.json only at
+    start (baseline) and end (updated baseline) - not every tick - so no git spam."""
+    interval = int(os.environ.get("INTERVAL", "20"))
+    total = int(os.environ.get("LOOP_SECONDS", "3300"))  # ~55 min
+    state = load_state()
+    deadline = time.time() + total
+    n = 0
+    print(f"Loop mode: every {interval}s for ~{total // 60} min")
+    while time.time() < deadline:
+        n += 1
+        new = collect(state, verbose=False)
+        alert(state, new)
+        state = new
+        # heartbeat every ~5 min so the run log shows progress
+        if n % max(1, (300 // interval)) == 1:
+            ticket = state.get("ope-opcg-regionals-bristol", {}).get("state", "?")
+            print(f"[{datetime.now():%H:%M:%S}] tick {n}: regionals={ticket}", flush=True)
+        time.sleep(interval)
+    save_state(state)
+    print(f"Loop done after {n} checks; state saved.")
 
 
 if __name__ == "__main__":
-    main()
+    if "--loop" in sys.argv:
+        run_loop()
+    else:
+        run_once()
