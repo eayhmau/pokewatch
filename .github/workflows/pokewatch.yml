@@ -25,6 +25,7 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           OPTCG_WEEZTIX: ${{ secrets.OPTCG_WEEZTIX }}
+          TCGPLUS_ID: ${{ secrets.TCGPLUS_ID }}
           INTERVAL: "20"
           LOOP_SECONDS: "3300"
         run: python3 check.py --loop
