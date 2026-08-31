@@ -65,6 +65,11 @@ BANDAI_PAGES = {
     ),
 }
 
+# Extra text appended to a source's alert (e.g. your TCG+ ID ready to paste at checkout).
+SOURCE_NOTES = {
+    "ope-opcg-regionals-london": "🪪 Your TCG+ ID (copy at checkout): `0000777121`",
+}
+
 STATE_FILE = "state.json"
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/125.0 Safari/537.36")
@@ -248,8 +253,11 @@ def alert(old, new):
                     head = "🎟️ @everyone **TICKETS AVAILABLE!** " + cur["state"]
             else:
                 head = "👀 **StockWatch:** status changed — " + cur["state"]
-            send_discord(f"{head}\n(was: `{prev.get('state')}`)\n{cur['link']}",
-                         webhook_env="OPTCG_WEEZTIX")
+            note = SOURCE_NOTES.get(name)
+            msg = f"{head}\n(was: `{prev.get('state')}`)\n{cur['link']}"
+            if note:
+                msg += "\n" + note
+            send_discord(msg, webhook_env="OPTCG_WEEZTIX")
         else:  # wall
             wall_lines.append(f"**{name}**: `{prev.get('state')}` -> `{cur['state']}` (HTTP {cur['http']})")
             wall_max = max(wall_max, cur["level"])
