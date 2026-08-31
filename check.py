@@ -55,6 +55,16 @@ OPE_EVENTS = {
     "ope-opcg-regionals-london": "https://tickets.organizedplay.events/Event/Index/175",
 }
 
+# --- Bandai Fest pages: registration links show "<Link Coming Soon>" until they
+# go live (announced Oct 25, 9:00am GMT). We alert when a placeholder becomes a
+# real link, i.e. the "coming soon" count drops below the current baseline.
+BANDAI_PAGES = {
+    "bandai-london-prereg": (
+        "https://www.bandaicardgames-fest.com/26-27/en/london/news/london-pre-registrationd.html",
+        2,  # baseline count of "coming soon" placeholders
+    ),
+}
+
 STATE_FILE = "state.json"
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/125.0 Safari/537.36")
@@ -143,6 +153,22 @@ def classify_ope(status, body):
     return "unknown-state", 1
 
 
+def classify_bandai(baseline):
+    """Return a classifier for a Bandai Fest page. Alerts when the number of
+    '<Link Coming Soon>' placeholders drops below baseline (a link went live)."""
+    def _classify(status, body):
+        if status != 200:
+            return "http-" + str(status), -1
+        lc = body.lower()
+        if "pre-registration" not in lc and "bandai card games fest" not in lc:
+            return "page-structure-changed", 1
+        n = lc.count("coming soon")
+        if n < baseline:
+            return f"LINKS OPENING ({n} of {baseline} placeholders left)", 2
+        return f"pending ({n}x coming soon)", 0
+    return _classify
+
+
 def send_discord(content, webhook_env="DISCORD_WEBHOOK"):
     webhook = os.environ.get(webhook_env, "").strip()
     if not webhook:
@@ -202,6 +228,8 @@ def collect(old, verbose=True):
         record(name, data_url, classify_weeztix, "weeztix", shop_url)
     for name, url in OPE_EVENTS.items():
         record(name, url, classify_ope, "ope", url)
+    for name, (url, baseline) in BANDAI_PAGES.items():
+        record(name, url, classify_bandai(baseline), "bandai", url)
     return new
 
 
@@ -212,11 +240,14 @@ def alert(old, new):
         prev = old.get(name, {})
         if not (prev and (prev.get("state") != cur["state"] or prev.get("level") != cur["level"])):
             continue
-        if cur["kind"] in ("weeztix", "ope"):
+        if cur["kind"] in ("weeztix", "ope", "bandai"):
             if cur["level"] >= 2:
-                head = "🎟️ @everyone **TICKETS AVAILABLE!** " + cur["state"]
+                if cur["kind"] == "bandai":
+                    head = "📝 @everyone **PRE-REGISTRATION OPENING!** " + cur["state"]
+                else:
+                    head = "🎟️ @everyone **TICKETS AVAILABLE!** " + cur["state"]
             else:
-                head = "👀 **StockWatch:** ticket status changed — " + cur["state"]
+                head = "👀 **StockWatch:** status changed — " + cur["state"]
             send_discord(f"{head}\n(was: `{prev.get('state')}`)\n{cur['link']}",
                          webhook_env="OPTCG_WEEZTIX")
         else:  # wall
