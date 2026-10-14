@@ -1,8 +1,8 @@
 {
   "pokemon-newreleases": {
-    "state": "maintenance",
-    "level": 1,
-    "http": 503,
+    "state": "blocked-403 (normal for datacenter IPs)",
+    "level": 0,
+    "http": 403,
     "kind": "wall",
     "link": "https://www.pokemoncenter.com/en-gb/category/new-releases"
   },
