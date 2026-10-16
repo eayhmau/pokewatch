@@ -42,8 +42,8 @@
     "link": "https://tickets.organizedplay.events/Event/Index/175"
   },
   "bandai-london-prereg": {
-    "state": "pending (2x coming soon)",
-    "level": 0,
+    "state": "LINKS OPENING (0 of 2 placeholders left)",
+    "level": 2,
     "http": 200,
     "kind": "bandai",
     "link": "https://www.bandaicardgames-fest.com/26-27/en/london/news/london-pre-registrationd.html"
