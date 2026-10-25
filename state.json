@@ -13,12 +13,12 @@
     "kind": "wall",
     "link": "https://www.pokemoncenter.com/"
   },
-  "weeztix-bcgfest-utrecht": {
-    "state": "all sold out (2 tickets)",
+  "weeztix-bcgfest-london-general": {
+    "state": "all sold out (1 ticket)",
     "level": 0,
     "http": 200,
     "kind": "weeztix",
-    "link": "https://shop.weeztix.com/2267989d-8cc0-11f0-a9cb-7e126431635e/tickets"
+    "link": "https://shop.weeztix.com/accc4227-c0a8-11f1-8e27-d65b0659bc31/tickets?shop_code=r6k49zsq&original_referer=https%3A%2F%2Fwww.bandaicardgames-fest.com%2F"
   },
   "ope-opcg-grandbattle-bristol": {
     "state": "sold out",
@@ -33,19 +33,5 @@
     "http": 200,
     "kind": "ope",
     "link": "https://tickets.organizedplay.events/Event/Index/178"
-  },
-  "ope-opcg-regionals-london": {
-    "state": "sold out",
-    "level": 0,
-    "http": 200,
-    "kind": "ope",
-    "link": "https://tickets.organizedplay.events/Event/Index/175"
-  },
-  "bandai-london-prereg": {
-    "state": "LINKS OPENING (0 of 2 placeholders left)",
-    "level": 2,
-    "http": 200,
-    "kind": "bandai",
-    "link": "https://www.bandaicardgames-fest.com/26-27/en/london/news/london-pre-registrationd.html"
   }
 }
