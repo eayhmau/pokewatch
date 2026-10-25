@@ -42,11 +42,6 @@ WALL_URLS = {
 # ticket_filter None watches ANY ticket in the shop; a string watches only tickets
 # whose name contains it (so we can track one pass in a shop that has many).
 WEEZTIX_SHOPS = {
-    "weeztix-bcgfest-utrecht": (
-        "https://shop.api.openticket.tech/2267989d-8cc0-11f0-a9cb-7e126431635e/data",
-        "https://shop.weeztix.com/2267989d-8cc0-11f0-a9cb-7e126431635e/tickets",
-        None,
-    ),
     "weeztix-bcgfest-london-general": (
         "https://shop.api.openticket.tech/accc4227-c0a8-11f1-8e27-d65b0659bc31/data",
         "https://shop.weeztix.com/accc4227-c0a8-11f1-8e27-d65b0659bc31/tickets"
@@ -61,18 +56,13 @@ WEEZTIX_SHOPS = {
 OPE_EVENTS = {
     "ope-opcg-grandbattle-bristol": "https://tickets.organizedplay.events/Event/Index/179",
     "ope-opcg-regionals-bristol": "https://tickets.organizedplay.events/Event/Index/178",
-    "ope-opcg-regionals-london": "https://tickets.organizedplay.events/Event/Index/175",
 }
 
 # --- Bandai Fest pages: registration links show "<Link Coming Soon>" until they
 # go live (announced Oct 25, 9:00am GMT). We alert when a placeholder becomes a
 # real link, i.e. the "coming soon" count drops below the current baseline.
-BANDAI_PAGES = {
-    "bandai-london-prereg": (
-        "https://www.bandaicardgames-fest.com/26-27/en/london/news/london-pre-registrationd.html",
-        2,  # baseline count of "coming soon" placeholders
-    ),
-}
+# (Bandai Fest London pre-registration opened 2026-10-25; watcher retired.)
+BANDAI_PAGES = {}
 
 # Your Bandai TCG+ Membership Number, supplied via the TCGPLUS_ID secret (kept out
 # of this public code). When set, it's appended to every ticket alert for easy copy.
