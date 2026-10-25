@@ -38,11 +38,20 @@ WALL_URLS = {
     "pokemon-home": "https://www.pokemoncenter.com/",
 }
 
-# --- JSON-API sources (Weeztix/OpenTicket shops: name -> (data_url, shop_url)) ---
+# --- JSON-API sources (Weeztix/OpenTicket: name -> (data_url, shop_url, ticket_filter))
+# ticket_filter None watches ANY ticket in the shop; a string watches only tickets
+# whose name contains it (so we can track one pass in a shop that has many).
 WEEZTIX_SHOPS = {
     "weeztix-bcgfest-utrecht": (
         "https://shop.api.openticket.tech/2267989d-8cc0-11f0-a9cb-7e126431635e/data",
         "https://shop.weeztix.com/2267989d-8cc0-11f0-a9cb-7e126431635e/tickets",
+        None,
+    ),
+    "weeztix-bcgfest-london-general": (
+        "https://shop.api.openticket.tech/accc4227-c0a8-11f1-8e27-d65b0659bc31/data",
+        "https://shop.weeztix.com/accc4227-c0a8-11f1-8e27-d65b0659bc31/tickets"
+        "?shop_code=r6k49zsq&original_referer=https%3A%2F%2Fwww.bandaicardgames-fest.com%2F",
+        "general entry pass",
     ),
 }
 
@@ -114,29 +123,39 @@ def classify_wall(status, body):
 BUYABLE_STATUSES = {"available", "on_sale", "onsale", "for_sale", "in_stock"}
 
 
-def classify_weeztix(status, body):
-    """Read the OpenTicket data JSON. Returns (state_name, signal_level).
+def weeztix_classifier(name_filter=None):
+    """Build a classifier for an OpenTicket data JSON. If name_filter is given,
+    only tickets whose name contains it (case-insensitive) are considered - so a
+    shop with many tickets can be watched for one specific pass.
     level -1 means 'unreliable read' - caller keeps the previous state, no alert."""
-    if status != 200:
-        return "api-http-" + str(status), -1
-    try:
-        data = json.loads(body)
-    except ValueError:
-        return "api-bad-json", -1
-    tickets = data.get("tickets", {})
-    if not isinstance(tickets, dict):
-        return "api-unexpected-shape", -1
-    # Only entries with a real name AND status are trustworthy; the queue layer
-    # sometimes returns blank/placeholder entries.
-    meaningful = [t for t in tickets.values()
-                  if isinstance(t, dict) and t.get("name") and t.get("status")]
-    if not meaningful:
-        return "api-degraded-response", -1
-    available = [t["name"] for t in meaningful
-                 if str(t.get("status", "")).lower() in BUYABLE_STATUSES]
-    if available:
-        return "AVAILABLE: " + ", ".join(available), 2
-    return f"all sold out ({len(meaningful)} tickets)", 0
+    def _classify(status, body):
+        if status != 200:
+            return "api-http-" + str(status), -1
+        try:
+            data = json.loads(body)
+        except ValueError:
+            return "api-bad-json", -1
+        tickets = data.get("tickets", {})
+        if not isinstance(tickets, dict):
+            return "api-unexpected-shape", -1
+        # Only entries with a real name AND status are trustworthy; the queue layer
+        # sometimes returns blank/placeholder entries.
+        meaningful = [t for t in tickets.values()
+                      if isinstance(t, dict) and t.get("name") and t.get("status")]
+        if name_filter:
+            nf = name_filter.lower()
+            matched = [t for t in meaningful if nf in str(t.get("name", "")).lower()]
+            if not matched:
+                return "watched-ticket-not-found", -1  # carry forward, don't alert
+            meaningful = matched
+        if not meaningful:
+            return "api-degraded-response", -1
+        available = [t["name"] for t in meaningful
+                     if str(t.get("status", "")).lower() in BUYABLE_STATUSES]
+        if available:
+            return "AVAILABLE: " + ", ".join(available), 2
+        return f"all sold out ({len(meaningful)} ticket{'s' if len(meaningful) != 1 else ''})", 0
+    return _classify
 
 
 def classify_ope(status, body):
@@ -228,8 +247,8 @@ def collect(old, verbose=True):
 
     for name, url in WALL_URLS.items():
         record(name, url, classify_wall, "wall", url)
-    for name, (data_url, shop_url) in WEEZTIX_SHOPS.items():
-        record(name, data_url, classify_weeztix, "weeztix", shop_url)
+    for name, (data_url, shop_url, tfilter) in WEEZTIX_SHOPS.items():
+        record(name, data_url, weeztix_classifier(tfilter), "weeztix", shop_url)
     for name, url in OPE_EVENTS.items():
         record(name, url, classify_ope, "ope", url)
     for name, (url, baseline) in BANDAI_PAGES.items():
