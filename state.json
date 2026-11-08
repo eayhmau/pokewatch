@@ -1,14 +1,14 @@
 {
   "pokemon-newreleases": {
-    "state": "blocked-403 (normal for datacenter IPs)",
-    "level": 0,
+    "state": "challenge-iframe (lockdown mode)",
+    "level": 1,
     "http": 403,
     "kind": "wall",
     "link": "https://www.pokemoncenter.com/en-gb/category/new-releases"
   },
   "pokemon-home": {
-    "state": "blocked-403 (normal for datacenter IPs)",
-    "level": 0,
+    "state": "challenge-iframe (lockdown mode)",
+    "level": 1,
     "http": 403,
     "kind": "wall",
     "link": "https://www.pokemoncenter.com/"
